@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Module>
+  <Name value="Dark Knights Invasion" />
+  <Id value="DarkKnightInvasion" />
+  <Version value="v0.0.1" />
+  <DefaultModule value="false" />
+  <ModuleCategory value="Singleplayer" />
+  <ModuleType value="Community" />
+  <DependedModules>
+    <DependedModule Id="Native" DependentVersion="v1.5.7" Optional="false" />
+    <DependedModule Id="SandBoxCore" DependentVersion="v1.5.7" Optional="false" />
+    <DependedModule Id="Sandbox" DependentVersion="v1.5.7" Optional="false" />
+  </DependedModules>
+  <SubModules>
+    <SubModule>
+      <Name value="DarkKnightsInvasion" />
+      <DLLName value="DarkKnightsInvasion.dll" />
+      <SubModuleClassType value="DarkKnightsInvasion.SubModule" />
+      <Tags>
+        <Tag key="DedicatedServerType" value="none" />
+        <Tag key="IsNoRenderModeElement" value="false" />
+      </Tags>
+    </SubModule>
+  </SubModules>
+</Module>
