@@ -1,0 +1,24 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <AssemblyName>DarkKnightsInvasion</AssemblyName>
+    <RootNamespace>DarkKnightsInvasion</RootNamespace>
+    <Version>0.0.1</Version>
+    <GameFolder>$(MSBuildProjectDirectory)\..\..\..</GameFolder>
+    <OutputPath>..\bin\Win64_Shipping_Client\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <GenerateDependencyFile>false</GenerateDependencyFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="$(GameFolder)\bin\Win64_Shipping_Client\TaleWorlds.*.dll" Exclude="$(GameFolder)\bin\Win64_Shipping_Client\TaleWorlds.Native.dll">
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="$(GameFolder)\Modules\SandBox\bin\Win64_Shipping_Client\SandBox.dll">
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+</Project>
