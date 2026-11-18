@@ -1,7 +1,9 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
+using Helpers;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Actions;
+using TaleWorlds.CampaignSystem.Party;
 using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.Core;
 using TaleWorlds.Localization;
@@ -25,6 +27,17 @@ namespace DarkKnightsInvasion
 
         private const uint ClanColorPrimary = 0xFF1A1A1A;   // near-black
         private const uint ClanColorSecondary = 0xFF8B0000; // dark red
+
+        // Army size knobs. Placeholder troops until our own troop tree exists.
+        private const int StartingClanTier = 5;
+        private const int LieutenantCount = 3;
+        private const float SpawnRadius = 6f;
+        private const int StartingGoldPerLord = 300000;
+        private const int FoodPerParty = 200;
+        private const string EliteTroopId = "imperial_elite_cataphract";
+        private const int EliteTroopsPerParty = 8;
+        private const string InfantryTroopId = "imperial_legionary";
+        private const int InfantryTroopsPerParty = 20;
 
         public static string Start()
         {
@@ -74,6 +87,10 @@ namespace DarkKnightsInvasion
             clan.Color2 = ClanColorSecondary;
             clan.IsNoble = true;
 
+            // Tier is derived from renown. A higher tier lets the clan field several parties.
+            float renownForTier = Campaign.Current.Models.ClanTierModel.GetRequiredRenownForTier(StartingClanTier);
+            clan.AddRenown(renownForTier - clan.Renown, false);
+
             // A clan without fiefs falls back to its initial home settlement, so give it one.
             clan.SetInitialHomeSettlement(target);
 
@@ -91,8 +108,49 @@ namespace DarkKnightsInvasion
             // 4) They arrive already at war with Vlandia.
             DeclareWarAction.ApplyByDefault(kingdom, vlandia);
 
+            // 5) Put troops on the map: the ruler plus a few lieutenants, each leading a party.
+            SpawnWarband(leader, target);
+            for (int i = 0; i < LieutenantCount; i++)
+            {
+                CharacterObject lieutenantTemplate =
+                    culture.LordTemplates[MBRandom.RandomInt(culture.LordTemplates.Count)];
+                Hero lieutenant = HeroCreator.CreateSpecialHero(
+                    lieutenantTemplate, null, null, null, MBRandom.RandomInt(25, 45));
+                lieutenant.Clan = clan;
+                SpawnWarband(lieutenant, target);
+            }
+
             return "Created kingdom '" + kingdom.Name + "' ruled by '" + leader.Name
-                + "'. At war with " + vlandia.Name + ". Target: " + target.Name + ".";
+                + "'. At war with " + vlandia.Name + ". Target: " + target.Name
+                + ". Spawned " + (LieutenantCount + 1) + " war parties.";
+        }
+
+        // Turns a hero into the leader of a fresh, supplied party standing near the target.
+        private static MobileParty SpawnWarband(Hero lord, Settlement target)
+        {
+            // A hero must be Active before the game will let him lead a party.
+            lord.ChangeState(Hero.CharacterStates.Active);
+            lord.ChangeHeroGold(StartingGoldPerLord);
+
+            // The game fills the party from the clan's default party template (our culture's troops).
+            MobileParty party = MobilePartyHelper.SpawnLordParty(lord, target.GatePosition, SpawnRadius);
+
+            // Extra muscle on top of the template.
+            AddTroops(party, EliteTroopId, EliteTroopsPerParty);
+            AddTroops(party, InfantryTroopId, InfantryTroopsPerParty);
+
+            // Without food the army starves long before the siege ends.
+            party.ItemRoster.AddToCounts(DefaultItems.Grain, FoodPerParty);
+            return party;
+        }
+
+        private static void AddTroops(MobileParty party, string troopId, int count)
+        {
+            CharacterObject troop = MBObjectManager.Instance.GetObject<CharacterObject>(troopId);
+            if (troop != null)
+            {
+                party.AddElementToMemberRoster(troop, count);
+            }
         }
 
         // Prefer a castle with a port (for the future sea landing), otherwise any castle.
