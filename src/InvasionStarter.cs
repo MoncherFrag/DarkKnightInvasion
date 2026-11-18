@@ -1,5 +1,8 @@
-﻿using System.Linq;
+﻿using System.Collections.Generic;
+using System.Linq;
 using TaleWorlds.CampaignSystem;
+using TaleWorlds.CampaignSystem.Actions;
+using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.Core;
 using TaleWorlds.Localization;
 using TaleWorlds.ObjectSystem;
@@ -13,6 +16,9 @@ namespace DarkKnightsInvasion
     public static class InvasionStarter
     {
         public const string ClanStringId = "dki_dark_knights";
+        public const string KingdomStringId = "dki_dark_knights_kingdom";
+
+        private const string VictimKingdomId = "vlandia";
 
         // Placeholder until we ship our own culture and troop tree.
         private const string PlaceholderCultureId = "empire";
@@ -28,6 +34,19 @@ namespace DarkKnightsInvasion
             {
                 return "The Dark Knights already exist: clan '" + existing.Name
                     + "', leader '" + existing.Leader?.Name + "'.";
+            }
+
+            // Validate everything first, then create objects. A half-built invasion is worse than none.
+            Kingdom vlandia = Kingdom.All.FirstOrDefault(k => k.StringId == VictimKingdomId);
+            if (vlandia == null || vlandia.IsEliminated)
+            {
+                return "Error: kingdom '" + VictimKingdomId + "' was not found or is eliminated.";
+            }
+
+            Settlement target = PickTargetCastle(vlandia);
+            if (target == null)
+            {
+                return "Error: Vlandia owns no castle to attack.";
             }
 
             CultureObject culture = MBObjectManager.Instance.GetObject<CultureObject>(PlaceholderCultureId);
@@ -55,14 +74,39 @@ namespace DarkKnightsInvasion
             clan.Color2 = ClanColorSecondary;
             clan.IsNoble = true;
 
-            // 3) Wire hero and clan together (same order the game uses for rebel clans).
-            clan.SetLeader(leader);
-            leader.Clan = clan;
+            // A clan without fiefs falls back to its initial home settlement, so give it one.
+            clan.SetInitialHomeSettlement(target);
 
-            // 4) Tell the rest of the game a new clan exists.
+            // SetLeader also moves the hero into the clan.
+            clan.SetLeader(leader);
+
+            // Tell the rest of the game a new clan exists.
             CampaignEventDispatcher.Instance.OnClanCreated(clan, false);
 
-            return "Created clan '" + clan.Name + "' led by '" + leader.Name + "'.";
+            // 3) The kingdom, ruled by our clan. Name, banner and colors come from the clan.
+            TextObject kingdomName = new TextObject("{=dki_kingdom_name}Dark Knights");
+            Kingdom kingdom = Campaign.Current.KingdomManager.CreateKingdom(
+                kingdomName, kingdomName, culture, clan, stringId: KingdomStringId);
+
+            // 4) They arrive already at war with Vlandia.
+            DeclareWarAction.ApplyByDefault(kingdom, vlandia);
+
+            return "Created kingdom '" + kingdom.Name + "' ruled by '" + leader.Name
+                + "'. At war with " + vlandia.Name + ". Target: " + target.Name + ".";
+        }
+
+        // Prefer a castle with a port (for the future sea landing), otherwise any castle.
+        private static Settlement PickTargetCastle(Kingdom kingdom)
+        {
+            List<Settlement> castles = kingdom.Settlements.Where(s => s.IsCastle).ToList();
+            if (castles.Count == 0)
+            {
+                return null;
+            }
+
+            List<Settlement> coastal = castles.Where(s => s.HasPort).ToList();
+            List<Settlement> pool = coastal.Count > 0 ? coastal : castles;
+            return pool[MBRandom.RandomInt(pool.Count)];
         }
     }
 }
