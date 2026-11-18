@@ -15,10 +15,9 @@ namespace DarkKnightsInvasion
                 return error;
             }
 
-            InformationManager.DisplayMessage(
-                new InformationMessage("Dark Knights: invasion komutu calisti (test).", Colors.Red));
-
-            return "dki.invade: komut calisti. Henuz istila baslatmiyor (test surumu).";
+            string result = InvasionStarter.Start();
+            InformationManager.DisplayMessage(new InformationMessage("Dark Knights: " + result, Colors.Red));
+            return result;
         }
     }
 }
