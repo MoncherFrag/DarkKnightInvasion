@@ -28,16 +28,16 @@ namespace DarkKnightsInvasion
         private const uint ClanColorPrimary = 0xFF1A1A1A;   // near-black
         private const uint ClanColorSecondary = 0xFF8B0000; // dark red
 
-        // Army size knobs. Placeholder troops until our own troop tree exists.
+        // Army size knobs. TEST VALUES: final balance comes later. Placeholder troops until our own troop tree exists.
         private const int StartingClanTier = 5;
-        private const int LieutenantCount = 3;
+        private const int LieutenantCount = 6;      // ruler + 6 lieutenants = 7 parties in total
         private const float SpawnRadius = 6f;
-        private const int StartingGoldPerLord = 300000;
-        private const int FoodPerParty = 200;
+        private const int StartingGoldPerLord = 100000;
+        private const int FoodPerParty = 600;
+        private const int TroopsPerParty = 300;     // total per party, including the lord himself
+        private const float EliteFraction = 0.3f;   // share of the top-up that is elite troops
         private const string EliteTroopId = "imperial_elite_cataphract";
-        private const int EliteTroopsPerParty = 8;
         private const string InfantryTroopId = "imperial_legionary";
-        private const int InfantryTroopsPerParty = 20;
 
         public static string Start()
         {
@@ -135,9 +135,14 @@ namespace DarkKnightsInvasion
             // The game fills the party from the clan's default party template (our culture's troops).
             MobileParty party = MobilePartyHelper.SpawnLordParty(lord, target.GatePosition, SpawnRadius);
 
-            // Extra muscle on top of the template.
-            AddTroops(party, EliteTroopId, EliteTroopsPerParty);
-            AddTroops(party, InfantryTroopId, InfantryTroopsPerParty);
+            // Top the party up to exactly TroopsPerParty: some elite, the rest line infantry.
+            int missing = TroopsPerParty - party.MemberRoster.TotalManCount;
+            if (missing > 0)
+            {
+                int elite = (int)(missing * EliteFraction);
+                AddTroops(party, EliteTroopId, elite);
+                AddTroops(party, InfantryTroopId, missing - elite);
+            }
 
             // Without food the army starves long before the siege ends.
             party.ItemRoster.AddToCounts(DefaultItems.Grain, FoodPerParty);

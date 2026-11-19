@@ -54,13 +54,13 @@ namespace DarkKnightsInvasion
                 MobileParty party = component.MobileParty;
                 sb.AppendLine(
                     "- " + party.Name
-                    + " | troops: " + party.MemberRoster.TotalManCount
-                    + " | behavior: " + party.DefaultBehavior
-                    + " | target: " + (party.TargetSettlement != null ? party.TargetSettlement.Name.ToString() : "none")
-                    + " | in settlement: " + (party.CurrentSettlement != null ? party.CurrentSettlement.Name.ToString() : "no")
-                    + " | in army: " + (party.Army != null ? "yes" : "no"));
+                    + " | troops: " + party.MemberRoster.TotalManCount + "/" + party.Party.PartySizeLimit
+                    + " | morale: " + party.Morale.ToString("0")
+                    + " | speed: " + party.Speed.ToString("0.0")
+                    + " | wage/day: " + party.TotalWage
+                    + " | gold: " + (party.LeaderHero != null ? party.LeaderHero.Gold : 0)
+                    + " | food days: " + party.GetNumDaysForFoodToLast());
             }
-
             return sb.ToString();
         }
     }
