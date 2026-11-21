@@ -6,6 +6,7 @@ using TaleWorlds.CampaignSystem.Actions;
 using TaleWorlds.CampaignSystem.Party;
 using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.Core;
+using TaleWorlds.Library;
 using TaleWorlds.Localization;
 using TaleWorlds.ObjectSystem;
 
@@ -20,7 +21,9 @@ namespace DarkKnightsInvasion
         public const string ClanStringId = "dki_dark_knights";
         public const string KingdomStringId = "dki_dark_knights_kingdom";
 
-        private const string VictimKingdomId = "vlandia";
+        public const string VictimKingdomId = "vlandia";
+        // The invasion's first target: Galend, a Vlandian town on the west coast (id from settlements.xml).
+        public const string TargetSettlementId = "town_V5";
 
         // Placeholder until we ship our own culture and troop tree.
         private const string PlaceholderCultureId = "empire";
@@ -32,9 +35,9 @@ namespace DarkKnightsInvasion
         private const int StartingClanTier = 5;
         private const int LieutenantCount = 6;      // ruler + 6 lieutenants = 7 parties in total
         private const float SpawnRadius = 6f;
-        private const int StartingGoldPerLord = 100000;
-        private const int FoodPerParty = 600;
-        private const int TroopsPerParty = 300;     // total per party, including the lord himself
+        private const int StartingGoldPerLord = 300000;
+        private const int FoodPerParty = 1200;
+        private const int TroopsPerParty = 500;     // total per party, including the lord himself
         private const float EliteFraction = 0.3f;   // share of the top-up that is elite troops
         private const string EliteTroopId = "imperial_elite_cataphract";
         private const string InfantryTroopId = "imperial_legionary";
@@ -56,10 +59,10 @@ namespace DarkKnightsInvasion
                 return "Error: kingdom '" + VictimKingdomId + "' was not found or is eliminated.";
             }
 
-            Settlement target = PickTargetCastle(vlandia);
-            if (target == null)
+            Settlement target = Settlement.Find(TargetSettlementId);
+            if (target == null || target.MapFaction != vlandia)
             {
-                return "Error: Vlandia owns no castle to attack.";
+                return "Error: target settlement '" + TargetSettlementId + "' was not found or is no longer Vlandian.";
             }
 
             CultureObject culture = MBObjectManager.Instance.GetObject<CultureObject>(PlaceholderCultureId);
@@ -108,8 +111,9 @@ namespace DarkKnightsInvasion
             // 4) They arrive already at war with Vlandia.
             DeclareWarAction.ApplyByDefault(kingdom, vlandia);
 
-            // 5) Put troops on the map: the ruler plus a few lieutenants, each leading a party.
-            SpawnWarband(leader, target);
+            // 5) Put troops on the map: the ruler plus lieutenants, each leading a party.
+            MobileParty leaderParty = SpawnWarband(leader, target);
+            List<MobileParty> followers = new List<MobileParty>();
             for (int i = 0; i < LieutenantCount; i++)
             {
                 CharacterObject lieutenantTemplate =
@@ -117,12 +121,19 @@ namespace DarkKnightsInvasion
                 Hero lieutenant = HeroCreator.CreateSpecialHero(
                     lieutenantTemplate, null, null, null, MBRandom.RandomInt(25, 45));
                 lieutenant.Clan = clan;
-                SpawnWarband(lieutenant, target);
+                followers.Add(SpawnWarband(lieutenant, target));
             }
+
+            // 6) Merge everyone into one besieging army, led by the ruler.
+            kingdom.CreateArmy(leader, target, Army.ArmyTypes.Besieger, new MBReadOnlyList<MobileParty>(followers));
+
+            string armyReport = leaderParty.Army != null
+                ? "Army formed with " + leaderParty.Army.Parties.Count + " parties."
+                : "WARNING: the army was not formed.";
 
             return "Created kingdom '" + kingdom.Name + "' ruled by '" + leader.Name
                 + "'. At war with " + vlandia.Name + ". Target: " + target.Name
-                + ". Spawned " + (LieutenantCount + 1) + " war parties.";
+                + ". Spawned " + (LieutenantCount + 1) + " war parties. " + armyReport;
         }
 
         // Turns a hero into the leader of a fresh, supplied party standing near the target.
@@ -156,20 +167,6 @@ namespace DarkKnightsInvasion
             {
                 party.AddElementToMemberRoster(troop, count);
             }
-        }
-
-        // Prefer a castle with a port (for the future sea landing), otherwise any castle.
-        private static Settlement PickTargetCastle(Kingdom kingdom)
-        {
-            List<Settlement> castles = kingdom.Settlements.Where(s => s.IsCastle).ToList();
-            if (castles.Count == 0)
-            {
-                return null;
-            }
-
-            List<Settlement> coastal = castles.Where(s => s.HasPort).ToList();
-            List<Settlement> pool = coastal.Count > 0 ? coastal : castles;
-            return pool[MBRandom.RandomInt(pool.Count)];
         }
     }
 }
